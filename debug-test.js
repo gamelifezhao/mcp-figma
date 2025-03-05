@@ -44,9 +44,28 @@ setTimeout(() => {
   serverProcess.stdin.write(JSON.stringify(request) + '\n');
 }, 1000);
 
-// 5秒后关闭
+// 发送工具执行请求
+setTimeout(() => {
+  const executeRequest = {
+    jsonrpc: '2.0',
+    id: randomUUID(),
+    method: 'mcp.tools.execute',
+    params: {
+      tool: "获取figma文件信息",
+      input: {
+        fileKey: "h6g8J7jKlmN90oP",  // 请替换为有效的Figma文件ID
+        nodeIds: ["0:1"]
+      }
+    }
+  };
+  
+  console.log('发送工具执行请求:', JSON.stringify(executeRequest, null, 2));
+  serverProcess.stdin.write(JSON.stringify(executeRequest) + '\n');
+}, 2000);
+
+// 10秒后关闭
 setTimeout(() => {
   console.log('测试完成，关闭服务...');
   serverProcess.kill();
   process.exit(0);
-}, 5000);
+}, 10000);

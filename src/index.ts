@@ -36,6 +36,15 @@ const CustomListToolsRequestSchema3 = z.object({
   params: z.object({}).optional()
 });
 
+// 自定义工具调用Schema，用于支持多种方法名称
+const CustomCallToolRequestSchema = z.object({
+  method: z.literal("mcp.tools.invoke"),
+  params: z.object({
+    name: z.string(),
+    arguments: z.record(z.any()).optional()
+  })
+});
+
 // 定义Figma API响应类型
 interface Team {
   id: string;
@@ -308,6 +317,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+server.setRequestHandler(CustomCallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+
+  try {
+    switch (name) {
+      case "读取figma用户信息":
+        return await handleReadFigmaUserInfo(args as ReadFigmaUserInfoArgs);
+      case "获取figma文件信息":
+        return await handleGetFigmaFileInfo(args as GetFigmaFileInfoArgs);
+      case "获取figma组件":
+        return await handleGetFigmaComponents(args as GetFigmaComponentsArgs);
+      case "获取figma注释":
+        return await handleGetFigmaComments(args as GetFigmaCommentsArgs);
+      case "创建figma注释":
+        return await handleCreateFigmaComment(args as CreateFigmaCommentArgs);
+      case "获取figma样式":
+        return await handleGetFigmaStyles(args as GetFigmaStylesArgs);
+      case "获取figma版本历史":
+        return await handleGetFigmaVersions(args as GetFigmaVersionsArgs);
+      default:
+        throw new Error(`未知工具: ${name}`);
+    }
+  } catch (error) {
+    console.error(`工具 ${name} 执行失败:`, error);
+    return {
+      content: [{
+        type: "text",
+        text: `执行失败: ${(error as Error).message}`
+      }]
+    };
+  }
+});
+
 /**
  * 处理初始化请求
  */
@@ -465,7 +507,7 @@ async function handleGetFigmaComponents(args: GetFigmaComponentsArgs) {
       file_key: fileKey
     });
     
-    const response:any = {
+    const response: any = {
       components: componentsResponse.meta.components
     };
 
@@ -515,9 +557,9 @@ async function handleGetFigmaComments(args: GetFigmaCommentsArgs) {
     });
     
     // 如果指定了页面ID，过滤注释
-    let comments:any = commentsResponse.comments;
+    let comments: any = commentsResponse.comments;
     if (pageId) {
-      comments = comments.filter((comment:any) => comment.client_meta?.page_id === pageId);
+      comments = comments.filter((comment: any) => comment.client_meta?.page_id === pageId);
     }
 
     return {
@@ -553,7 +595,7 @@ async function handleCreateFigmaComment(args: CreateFigmaCommentArgs) {
     const api = createFigmaClient();
 
     // 构建注释数据
-    const commentData:any = {
+    const commentData: any = {
       message,
       client_meta: {
         x: position.x,
@@ -609,7 +651,7 @@ async function handleGetFigmaStyles(args: GetFigmaStylesArgs) {
     // 如果指定了样式类型，过滤样式
     let styles = stylesResponse.meta.styles;
     if (styleTypes && styleTypes.length > 0) {
-      styles = styles.filter((style:any) => styleTypes.includes(style.style_type));
+      styles = styles.filter((style: any) => styleTypes.includes(style.style_type));
     }
 
     return {
@@ -653,7 +695,7 @@ async function handleGetFigmaVersions(args: GetFigmaVersionsArgs) {
     let versions = versionsResponse.versions;
 
     if (before) {
-      const beforeIndex = versions.findIndex((v:any) => v.id === before);
+      const beforeIndex = versions.findIndex((v: any) => v.id === before);
       if (beforeIndex !== -1) {
         versions = versions.slice(beforeIndex + 1);
       }
@@ -688,17 +730,8 @@ async function main() {
   console.error("启动MCP服务...");
   console.error("FIGMA_ACCESS_TOKEN是否设置:", !!process.env.FIGMA_ACCESS_TOKEN);
   
-  const transport:any = new StdioServerTransport();
+  const transport = new StdioServerTransport(process.stdin, process.stdout);
   console.error("创建StdioServerTransport成功");
-  
-  // 添加请求和响应日志
-  transport.onRequest = (request:any) => {
-    console.error("收到请求:", JSON.stringify(request));
-  };
-  
-  transport.onResponse = (response:any) => {
-    console.error("发送响应:", JSON.stringify(response));
-  };
   
   try {
     await server.connect(transport);

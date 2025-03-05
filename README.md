@@ -50,6 +50,10 @@ npx @modelcontextprotocol/inspector build/index.js
 ```bash
 node direct-test.js
 ```
+##
+使用 inspector 测试
+$env:FIGMA_ACCESS_TOKEN="你的tokens"; npm run inspector
+
 
 ## 配置MCP客户端
 
